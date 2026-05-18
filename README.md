@@ -10,13 +10,12 @@ The implementation follows a modular design based on the Ultralytics YOLOv8 code
 First, download the official YOLOv8 source code from the following address: **[YOLOv8 Official Repository](https://github.com/ultralytics/ultralytics)**. Follow the official installation guide to configure the necessary Python environment and dependencies.
 
 ### 2. Implementation Details
-Our method involves several key modifications to the standard YOLOv8 architecture to support multi-modal data fusion:
+Our method involves several key modifications to the standard YOLOv8 architecture to support multi-modal data fusion, the main modifications are as follows:
 
 * **Dataset Loading Mechanism:** We modified the data pipeline to support the synchronized loading of registered optical and SAR image pairs.
-* **FusionDetection Class:** A new **FusionDetection** class was implemented by extending the base **Detection** class to handle dual-stream feature processing.
-* **FusionValid Class:** The **FusionValid** class was rewritten based on the standard **Validator** class to evaluate detection performance on multi-modal datasets.
+* **FusionDetection Class:** A new **FusionDetectionModel** class was implemented by extending the base **DetectionModel** class to handle dual-stream feature processing. The forward function of the model was refined to integrate the fusion module and ensure correct feature flow between the heterogeneous branches.
+* **FusionTrainer Class:** The **FusionDetectionTrainer** class was rewritten based on the standard **DetectionTrainer** class to load registered optical and SAR image data during the training process.
 * **Multi-modal Fusion Module:** This includes the source code for our proposed fusion module and the necessary logic for feature decoding.
-* **Forward Propagation:** The forward function of the model was refined to integrate the fusion module and ensure correct feature flow between the heterogeneous branches.
 
 ## Dataset Access
 
