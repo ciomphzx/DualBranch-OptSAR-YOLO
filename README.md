@@ -1,7 +1,8 @@
 # Correlation-Guided Progressive Interaction and Gated Fusion for Multi-modal Optical and SAR Remote Sensing Image Object Detection
 
 This repository provides the official implementation for our research on multi-modal optical and SAR remote sensing image object detection. The proposed architecture is built upon the official YOLOv8 framework to achieve robust performance in complex environments.
-<img src="figures/framework.jpg" alt="描述文字" width="300" height="200">
+
+<img src="figures/framework.jpg" alt="描述文字" width="600" height="400">
 
 ## Usage Instructions
 
