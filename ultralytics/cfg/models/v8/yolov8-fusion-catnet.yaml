@@ -1,0 +1,56 @@
+# YOLOv8 dual-stream with CATNet (CMFM + MSAM) strategy
+ch: 6
+nc: 80 
+
+scales:
+  n: [0.33, 0.25, 1024] 
+
+# --- Backbone RGB Branch ---
+backbone:
+  - [-1, 1, Conv, [64, 3, 2]] # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 1-P2/4
+  - [-1, 3, C2f, [128, True]] # 2-P2
+  - [-1, 1, Conv, [256, 3, 2]] # 3-P3/8
+  - [-1, 6, C2f, [256, True]] # 4-P3
+  - [-1, 1, Conv, [512, 3, 2]] # 5-P4/16
+  - [-1, 6, C2f, [512, True]] # 6-P4
+  - [-1, 1, Conv, [1024, 3, 2]] # 7-P5/32
+  - [-1, 3, C2f, [1024, True]] # 8
+  - [-1, 1, SPPF, [1024, 5]] # 9-P5
+
+# --- Backbone SAR Branch ---
+  - [-10, 1, Conv, [64, 3, 2]] # 10-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 11-P2/4
+  - [-1, 3, C2f, [128, True]] # 12-P2
+  - [-1, 1, Conv, [256, 3, 2]] # 13-P3/8
+  - [-1, 6, C2f, [256, True]] # 14-P3
+  - [-1, 1, Conv, [512, 3, 2]] # 15-P4/16
+  - [-1, 6, C2f, [512, True]] # 16-P4
+  - [-1, 1, Conv, [1024, 3, 2]] # 17-P5/32
+  - [-1, 3, C2f, [1024, True]] # 18
+  - [-1, 1, SPPF, [1024, 5]] # 19-P5
+
+# --- CATNet CMFM Fusion (同尺度融合) ---
+  - [[4, 14], 1, CMFM, []]    # 20: F_P3 (256 ch)
+  - [[6, 16], 1, CMFM, []]    # 21: F_P4 (512 ch)
+  - [[9, 19], 1, CMFM, []]    # 22: F_P5 (1024 ch)
+
+# --- CATNet MSAM Neck (多尺度聚合) ---
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 23 (from F_P5)
+  - [[21, -1], 1, MSAM, []]    # 24: Aggregate F_P4 and Up(F_P5)
+  - [-1, 3, C2f, [512]]        # 25
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 26
+  - [[20, -1], 1, MSAM, []]    # 27: Aggregate F_P3 and Up(F_P4)
+  - [-1, 3, C2f, [256]]        # 28 (Detect P3)
+
+  - [-1, 1, Conv, [256, 3, 2]] 
+  - [[25, -1], 1, MSAM, []]    # 30: Aggregate F_P4 and Down(F_P3)
+  - [-1, 3, C2f, [512]]        # 31 (Detect P4)
+
+  - [-1, 1, Conv, [512, 3, 2]]
+  - [[22, -1], 1, MSAM, []]    # 33: Aggregate F_P5 and Down(F_P4)
+  - [-1, 3, C2f, [1024]]       # 34 (Detect P5)
+
+  - [[28, 31, 34], 1, Detect, [nc]]

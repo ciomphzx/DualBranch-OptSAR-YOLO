@@ -1,0 +1,71 @@
+# YOLOv8 dual-stream with DENet (DAM + ERGM) fusion
+ch: 6
+nc: 80 
+
+scales:
+  n: [0.33, 0.25, 1024] 
+
+# --- Backbone RGB Branch ---
+backbone:
+  - [-1, 1, Conv, [64, 3, 2]] # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 1-P2/4
+  - [-1, 3, C2f, [128, True]] # 2 - RGB Stage 1 (P2)
+  - [-1, 1, Conv, [256, 3, 2]] # 3-P3/8
+  - [-1, 6, C2f, [256, True]] # 4 - RGB Stage 2 (P3)
+  - [-1, 1, Conv, [512, 3, 2]] # 5-P4/16
+  - [-1, 6, C2f, [512, True]] # 6 - RGB Stage 3 (P4)
+  - [-1, 1, Conv, [1024, 3, 2]] # 7-P5/32
+  - [-1, 3, C2f, [1024, True]] # 8
+  - [-1, 1, SPPF, [1024, 5]] # 9 - RGB Stage 4 (P5)
+
+# --- Backbone SAR/Depth Branch ---
+  - [-10, 1, Conv, [64, 3, 2]] # 10-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 11-P2/4
+  - [-1, 3, C2f, [128, True]] # 12 - Depth Stage 1 (P2)
+  - [-1, 1, Conv, [256, 3, 2]] # 13-P3/8
+  - [-1, 6, C2f, [256, True]] # 14 - Depth Stage 2 (P3)
+  - [-1, 1, Conv, [512, 3, 2]] # 15-P4/16
+  - [-1, 6, C2f, [512, True]] # 16 - Depth Stage 3 (P4)
+  - [-1, 1, Conv, [1024, 3, 2]] # 17-P5/32
+  - [-1, 3, C2f, [1024, True]] # 18
+  - [-1, 1, SPPF, [1024, 5]] # 19 - Depth Stage 4 (P5)
+
+# --- DENet Fusion Logic [cite: 159] ---
+# Stage 1 & 2: 修正与初步融合 (用于生成边缘信号)
+  - [[12, 2], 1, DAM, []]      # 20: 校正后的 Depth P2 (X1d')
+  - [[20, 2], 1, Concat, [1]]  # 21: 融合特征 F1 (P2)
+  - [[14, 4], 1, DAM, []]      # 22: 校正后的 Depth P3 (X2d')
+  - [[22, 4], 1, Concat, [1]]  # 23: 融合特征 F2 (P3)
+
+# 核心：边缘强化引导模块 (ERGM) [cite: 66, 171]
+  - [[21, 23], 1, ERGM, []]    # 24: 边缘引导特征 F_eg
+
+# Stage 3: P4 融合与边缘精炼
+  - [[16, 6], 1, DAM, []]      # 25: 校正后的 Depth P4 (X3d')
+  - [[25, 6], 1, Concat, [1]]  # 26: 基础融合特征 F3
+  - [[26, 24], 1, DENetRefine, []] # 27: 精炼后的 F3 (P4 输出)
+
+# Stage 4: P5 融合与边缘精炼
+  - [[19, 9], 1, DAM, []]      # 28: 校正后的 Depth P5 (X4d')
+  - [[28, 9], 1, Concat, [1]]  # 29: 基础融合特征 F4
+  - [[29, 24], 1, DENetRefine, []] # 30: 精炼后的 F4 (P5 输出)
+
+# --- YOLOv8 Head ---
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 31
+  - [[-1, 27], 1, Concat, [1]] # 32
+  - [-1, 3, C2f, [512]] # 33
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 34
+  - [[-1, 23], 1, Concat, [1]] # 35
+  - [-1, 3, C2f, [256]] # 36 (Detect P3)
+
+  - [-1, 1, Conv, [256, 3, 2]] # 37
+  - [[-1, 33], 1, Concat, [1]] # 38
+  - [-1, 3, C2f, [512]] # 39 (Detect P4)
+
+  - [-1, 1, Conv, [512, 3, 2]] # 40
+  - [[-1, 30], 1, Concat, [1]] # 41
+  - [-1, 3, C2f, [1024]] # 42 (Detect P5)
+
+  - [[36, 39, 42], 1, Detect, [nc]]
