@@ -2,7 +2,7 @@
 
 This repository provides the official implementation for our research on multi-modal optical and SAR remote sensing image object detection. The proposed architecture is built upon the official YOLOv8 framework to achieve robust performance in complex environments.
 
-<img src="figures/framework.jpg" alt="描述文字" width="600" height="400">
+<img src="figures/framework.jpg" alt="描述文字" width="800" height="600">
 
 ## Usage Instructions
 
